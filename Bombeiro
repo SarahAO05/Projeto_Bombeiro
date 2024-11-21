@@ -1,0 +1,189 @@
+#include <iostream>
+#include <string.h>
+#include <Windows.h>
+#include <locale.h>
+
+struct Bombeiro{
+    char nome[30];
+    char id[10];
+    char funcao[30];
+    char disponibilidade;
+};
+
+int tamanho(FILE *);
+void cadastrar(FILE *);
+void consultar(FILE *);
+void gerarRelatorio(FILE *);
+void excluir(FILE *);
+
+int main(){
+	
+	setlocale(LC_ALL, "Portuguese");
+	
+    int op;
+    FILE *arq;
+
+    if((arq = fopen("bombeiros.dat", "rb+")) == NULL){
+        if((arq = fopen("bombeiros.dat", "wb+")) == NULL){
+            printf("Falha ao abrir o arquivo!\n");
+            system("pause");
+        }
+    }
+
+    do{
+        system("CLS");
+        printf("\n======= SISTEMA DE BOMBEIROS ======= \n");
+        printf("1. Cadastrar Bombeiro\n");
+        printf("2. Consultar por ID\n");
+        printf("3. Gerar Relatório\n");
+        printf("4. Excluir Registro\n");
+        printf("5. Sair\n");
+        printf("===========Total de Bombeiros: %d ========\n", tamanho(arq));
+        printf("Opção: ");
+        scanf("%d", &op);
+        switch (op){
+        case 1:
+            cadastrar(arq);
+            break;
+        case 2:
+            consultar(arq);
+            break;
+        case 3:
+            gerarRelatorio(arq);
+            break;
+        case 4:
+            excluir(arq);
+            break;
+        case 5:
+            fclose(arq);
+        }
+    } while (op != 5);
+}
+
+void cadastrar(FILE *arq){
+	
+    Bombeiro bombeiro;
+    char confirma;
+    bombeiro.disponibilidade = 'D';
+    fflush(stdin);
+
+    printf("Cadastro de novo bombeiro:\n");
+    printf("\nNúmero de Registro: %d\n", tamanho(arq) + 1);
+    printf("Nome: ");
+    gets(bombeiro.nome);
+    printf("ID do Bombeiro: ");
+    gets(bombeiro.id);
+    printf("Função: ");
+    gets(bombeiro.funcao);
+    printf("\nConfirmar <s/n>: ");
+    fflush(stdin);
+    scanf("%c", &confirma);
+
+    if(toupper(confirma) == 'S'){
+        printf("\nSalvando registro...\n\n");
+        fseek(arq, 0, SEEK_END);
+        fwrite(&bombeiro, sizeof(Bombeiro), 1, arq);
+    }
+    system("pause");
+}
+
+void consultar(FILE *arq){
+	
+    Bombeiro bombeiro;
+    int nr;
+    printf("\nConsulta por Número de Registro\n");
+    printf("\nInforme o Número: ");
+    scanf("%d", &nr);
+    
+    if((nr <= tamanho(arq)) && (nr > 0)){
+        fseek(arq, (nr - 1) * sizeof(Bombeiro), SEEK_SET);
+        fread(&bombeiro, sizeof(Bombeiro), 1, arq);
+        if(bombeiro.disponibilidade == 'D' || bombeiro.disponibilidade == 'I'){
+            printf("\nNome: %s", bombeiro.nome);
+            printf("\nID: %s", bombeiro.id);
+            printf("\nFunção: %s", bombeiro.funcao);
+            printf("\nDisponível: %c\n\n", bombeiro.disponibilidade);
+        }else{
+        	 printf("\nRegistro excluído!\n");
+		}
+    }else{
+        printf("\nNúmero de registro inválido!\n");
+    }
+    system("pause");
+}
+
+void gerarRelatorio(FILE *arq){
+	
+    char nomearq[30];
+    printf("Nome do arquivo de relatório: ");
+    scanf("%s", nomearq);
+    strcat(nomearq, ".txt");
+    FILE *arqtxt = fopen(nomearq, "w");
+    
+    if(!arqtxt){
+        printf("Não foi possível criar o arquivo!\n");
+        system("pause");
+    }
+    
+    fprintf(arqtxt, "Nome                 ID          Função                 Disponibilidade\n");
+    fprintf(arqtxt, "=======================================================================\n");
+    
+    int nr;
+    Bombeiro bombeiro;
+    
+    for(nr = 0; nr < tamanho(arq); nr++){
+        fseek(arq, nr * sizeof(Bombeiro), SEEK_SET);
+        fread(&bombeiro, sizeof(Bombeiro), 1, arq);
+
+        char disponibilidade = (bombeiro.disponibilidade == '*') ? 'I' : bombeiro.disponibilidade;
+
+        fprintf(arqtxt, "%-20s %-10s %-20s %c\n", bombeiro.nome, bombeiro.id, bombeiro.funcao, disponibilidade);
+    }
+    
+    fprintf(arqtxt, "========================================================================\n");
+    fclose(arqtxt);
+}
+
+void excluir(FILE *arq){
+	
+    Bombeiro bombeiro;
+    char confirma;
+    int nr;
+
+    printf("\nInforme o número do registro para excluir: ");
+    scanf("%d", &nr);
+    
+    if((nr <= tamanho(arq)) && (nr > 0)){
+        fseek(arq, (nr - 1) * sizeof(Bombeiro), SEEK_SET);
+        fread(&bombeiro, sizeof(Bombeiro), 1, arq);
+        
+        if(bombeiro.disponibilidade != '*'){
+            printf("\nNome: %s", bombeiro.nome);
+            printf("\nID: %s", bombeiro.id);
+            printf("\nFunção: %s", bombeiro.funcao);
+            printf("\nDisponível: %c\n", bombeiro.disponibilidade);
+            printf("\nConfirmar exclusão <s/n>: ");
+            getchar();
+            scanf("%c", &confirma);
+
+            if(toupper(confirma) == 'S'){
+                printf("\nExcluindo...\n\n");
+                fseek(arq, (nr - 1) * sizeof(Bombeiro), SEEK_SET);
+                bombeiro.disponibilidade = '*';
+                fwrite(&bombeiro, sizeof(Bombeiro), 1, arq);
+            }
+        }else{
+        	printf("Registro inexistente!\n");
+		}
+    }else{
+        printf("\nNúmero de registro inválido!\n");
+    }
+    system("pause");
+}
+
+int tamanho(FILE *arq){
+    fseek(arq, 0, SEEK_END);
+    return ftell(arq) / sizeof(Bombeiro);
+}
+
+
